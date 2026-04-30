@@ -1,3 +1,5 @@
-# Hotel Booking System
-
-Full stack app with booking, cancel, availability, and price calculation.
+ node_modules/
+.env
+dist/
+build/
+.DS_Store

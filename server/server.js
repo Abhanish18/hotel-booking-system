@@ -13,8 +13,8 @@ mongoose
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error("MongoDB error:", err));
 
-app.get("/", (req, res) => {
-  res.send("API running");
+ app.get("/", (req,res)=>{
+ res.send("SERVER IS USING THIS FILE");
 });
 
 app.use("/api/bookings", bookingRoutes);

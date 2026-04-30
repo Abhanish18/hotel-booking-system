@@ -1,90 +1,199 @@
  import express from "express";
 import Booking from "../models/Booking.js";
+import contract from "../services/blockchain.js";
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
-  try {
-    const bookings = await Booking.find().sort({ createdAt: -1 });
-    res.json(bookings);
-  } catch (err) {
-    console.error("GET bookings error:", err);
-    res.status(500).json({ message: "Failed to fetch bookings" });
-  }
+
+// GET ALL BOOKINGS
+router.get("/", async(req,res)=>{
+
+try{
+
+const bookings=
+await Booking.find().sort({
+createdAt:-1
 });
 
-router.post("/", async (req, res) => {
-  try {
-    console.log("Incoming booking body:", req.body);
+res.json(bookings);
 
-    const { userName, userEmail, room, checkIn, checkOut } = req.body;
+}
 
-    if (!userName || !userEmail || !room || !checkIn || !checkOut) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
+catch(err){
 
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ message: "Invalid date format" });
-    }
-
-    if (end <= start) {
-      return res.status(400).json({ message: "Check-out must be after check-in" });
-    }
-
-    const overlapping = await Booking.findOne({
-      room,
-      status: "booked",
-      checkIn: { $lt: end },
-      checkOut: { $gt: start }
-    });
-
-    if (overlapping) {
-      return res.status(400).json({ message: "Room not available for selected dates" });
-    }
-
-    const millisecondsPerDay = 1000 * 60 * 60 * 24;
-    const nights = Math.ceil((end - start) / millisecondsPerDay);
-    const totalAmount = nights * 100;
-
-    const booking = await Booking.create({
-      userName,
-      userEmail,
-      room,
-      checkIn: start,
-      checkOut: end,
-      totalAmount,
-      status: "booked"
-    });
-
-    res.status(201).json({
-      message: "Booking created successfully",
-      booking
-    });
-  } catch (err) {
-    console.error("POST bookings error:", err);
-    res.status(500).json({ message: "Server error while creating booking" });
-  }
+res.status(500).json({
+message:"Fetch failed"
 });
 
-router.put("/:id/cancel", async (req, res) => {
-  try {
-    const booking = await Booking.findById(req.params.id);
+}
 
-    if (!booking) {
-      return res.status(404).json({ message: "Booking not found" });
-    }
-
-    booking.status = "cancelled";
-    await booking.save();
-
-    res.json({ message: "Booking cancelled successfully", booking });
-  } catch (err) {
-    console.error("Cancel booking error:", err);
-    res.status(500).json({ message: "Failed to cancel booking" });
-  }
 });
+
+
+
+// CREATE BOOKING
+router.post("/", async(req,res)=>{
+
+try{
+
+const {
+userName,
+userEmail,
+room,
+checkIn,
+checkOut
+}=req.body;
+
+
+if(
+!userName||
+!userEmail||
+!room||
+!checkIn||
+!checkOut
+){
+return res.status(400).json({
+message:"All fields required"
+});
+}
+
+
+const start=
+new Date(checkIn);
+
+const end=
+new Date(checkOut);
+
+
+if(end<=start){
+return res.status(400).json({
+message:"Invalid dates"
+});
+}
+
+
+
+const nights=
+Math.ceil(
+(end-start)/(1000*60*60*24)
+);
+
+const totalAmount=
+nights*100;
+
+
+
+// BLOCKCHAIN
+const unixCheckIn=
+Math.floor(
+start.getTime()/1000
+);
+
+const unixCheckOut=
+Math.floor(
+end.getTime()/1000
+);
+
+await contract.createBooking(
+room,
+unixCheckIn,
+unixCheckOut
+);
+
+
+
+// MONGO
+const booking=
+await Booking.create({
+
+userName,
+userEmail,
+room,
+checkIn:start,
+checkOut:end,
+totalAmount,
+status:"booked"
+
+});
+
+
+res.status(201).json({
+
+message:
+"Saved in Mongo + Blockchain",
+
+booking
+
+});
+
+
+}
+
+catch(err){
+
+console.log(err);
+
+res.status(500).json({
+message:"Booking failed"
+});
+
+}
+
+});
+
+
+
+
+// CANCEL BOOKING
+router.put(
+"/:id/cancel",
+async(req,res)=>{
+
+try{
+
+const booking=
+await Booking.findById(
+req.params.id
+);
+
+if(!booking){
+return res.status(404).json({
+message:"Booking not found"
+});
+}
+
+
+booking.status=
+"cancelled";
+
+await booking.save();
+
+
+// blockchain cancel
+await contract.cancelBooking(
+1
+);
+
+
+res.json({
+message:
+"Cancelled in Mongo + Blockchain"
+});
+
+}
+
+catch(err){
+
+console.log(err);
+
+res.status(500).json({
+message:"Cancel failed"
+});
+
+}
+
+}
+);
+
 
 export default router;

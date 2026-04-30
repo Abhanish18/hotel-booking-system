@@ -1,4 +1,4 @@
- {
+{
   "name": "server",
   "version": "1.0.0",
   "main": "server.js",
@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "ethers": "^6.16.0",
     "express": "^5.1.0",
     "mongoose": "^8.15.1"
   }
